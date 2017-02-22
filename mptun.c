@@ -37,7 +37,7 @@
 #define tun_write(...) utun_write(__VA_ARGS__)
 #endif
 
-#define MAX_ADDRESS 16
+#define MAX_ADDRESS 26
 #define BASE_COUNT 64
 #define MAX_COUNT 16384
 /* buffer for reading , must be >= 1500 */
@@ -196,50 +196,13 @@ static const uint32_t r[] = {7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12,
 
 static inline int
 mptun_encrypt(const char in[BUFF_SIZE], int sz, char out[BUFF_SIZE], uint64_t key, time_t ti) {
-	uint64_t h = hash_key(in, sz);
-	uint32_t tmp;
-	struct rc4_sbox rs;
-	if (sz > BUFF_SIZE - 8)
-		return -1;
-	key = hmac(key, ti);
-	rc4_init(&rs, key);
-	key ^= h;
-	tmp = htonl(ti);
-	memcpy(out, &tmp, 4);
-	tmp = htonl((uint32_t)key ^ (uint32_t)(key >> 32));
-	memcpy(out+4, &tmp, 4);
-	rc4_encode(&rs, (const uint8_t *)in, (uint8_t *)out+8, sz);
-
-	return sz + 8;
+	memcpy(out, in, sz);
+	return sz;
 }
 
 static inline int
 mptun_decrypt(const char in[BUFF_SIZE], int sz, char out[BUFF_SIZE], uint64_t key, time_t ti) {
-	uint32_t pt, check;
-	uint64_t h;
-	struct rc4_sbox rs;
-	sz -= 8;
-	if (sz < 0) {
-		return -1;
-	}
-
-	memcpy(&pt, in, 4);
-	memcpy(&check, in+4, 4);
-	pt = ntohl(pt);
-	check = ntohl(check);
-	if (abs((int)(pt - ti)) > TIME_DIFF) {
-		return -1;
-	}
-	key = hmac(key, pt);
-	rc4_init(&rs, key);
-
-	rc4_encode(&rs, (const uint8_t *)in+8, (uint8_t *)out, sz);
-	h = hash_key(out, sz);
-	key ^= h;
-
-	if (check != ((uint32_t)key ^ (uint32_t)(key >> 32))) {
-		return -1;
-	}
+	memcpy(out, in, sz);
 	return sz;
 }
 
@@ -454,7 +417,6 @@ inet_bind(INADDR *addr, int port) {
 	address.sin_family = AF_INET;
 	address.sin_addr = *addr;
 	address.sin_port = htons(port);
-
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(int)) ==-1) {
 		close(fd);
 		return -1;
@@ -663,6 +625,7 @@ tun_to_inet(struct tundev *tdev, fd_set *wt) {
 			break;
 		}
 	}
+	//dumpinfo(tdev);
 	tdev->out[remoteindex] += n;
 }
 
@@ -722,6 +685,7 @@ forwarding(struct tundev *tdev, int maxrd, fd_set *rdset, int maxwt, fd_set *wts
 			tun_to_inet(tdev, &wt);
 		}
 	}
+	//dumpinfo(tdev);
 }
 
 static void
