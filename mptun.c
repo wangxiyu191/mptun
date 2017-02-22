@@ -620,23 +620,7 @@ choose_local(struct tundev *tdev, fd_set *set) {
 
 static int
 choose_remote(struct tundev *tdev) {
-	int i;
-	int t = 0;
-	int r;
-	if (tdev->remote_n <= 1)
-		return 0;
-	for (i=0;i<tdev->remote_n;i++) {
-		t += BASE_COUNT + tdev->remote_count[i];
-	}
-	r = random() % t;
-	t = 0;
-	for (i=0;i<tdev->remote_n;i++) {
-		t += BASE_COUNT + tdev->remote_count[i];
-		if (r < t) {
-			return i;
-		}
-	}
-	return 0;
+	return (random())%(tdev->remote_n);
 }
 
 // forward ip packet from tun to internet with address
