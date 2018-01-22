@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
-#include <assert.h>
+#include <cassert>
 #include <sys/socket.h>
 #if defined(__linux__)
 #include <linux/if.h>
@@ -21,13 +21,16 @@
 #include <sys/stat.h>
 #include <arpa/inet.h> 
 #include <sys/select.h>
+#include <netdb.h>
 #include <sys/time.h>
+#include <ifaddrs.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <stdarg.h>
+#include <cerrno>
+#include <cstdarg>
 #include <signal.h>
 #include <inttypes.h>
-#include <time.h>
+#include <ctime>
+#include <vector>
 
 #if defined(IFF_TUN)
 #define tun_read(...) read(__VA_ARGS__)
@@ -517,7 +520,7 @@ tun_to_inet(struct tundev *tdev, fd_set *wt) {
 			break;
 		}
 	}
-	dumpinfo(tdev);
+	//dumpinfo(tdev);
 	tdev->out[remoteindex] += n;
 }
 
@@ -644,6 +647,29 @@ ifconfig(const char * ifname, const char * va, const char *pa) {
         
 }
 
+std::vector<unsigned int> &&
+get_local_ip(){
+	struct ifaddrs *iflist, *ifnow;
+	std::vector<unsigned int> result;
+	if (getifaddrs(&iflist) == -1){
+		perror("getifaddrs");
+		exit(EXIT_FAILURE);
+	}
+	for (ifnow = iflist; ifnow != nullptr ; ifnow = ifnow->ifa_next){
+		if(!ifnow->ifa_addr){
+			continue;
+		}
+		int family = ifnow->ifa_addr->sa_family;
+			
+		if (family == AF_INET ){
+			printf("%-8s",ifnow->ifa_name);
+			result.push_back(((sockaddr_in *)ifnow->ifa_addr)->sin_addr.s_addr);
+		}
+	}
+        freeifaddrs(iflist);
+	return std::move(result);
+}
+
 int
 main(int argc, char *argv[]) {
 	int i;
@@ -653,7 +679,7 @@ main(int argc, char *argv[]) {
 	char ptpaddress[IP_SIZE] = "";
 	struct tundev tdev;
 	memset(&tdev, 0, sizeof(tdev));
-
+	get_local_ip();
 	while ((option = getopt(argc, argv, "i:v:t:r:l:p:k:")) > 0) {
 		INADDR addr;
 		switch(option) {
